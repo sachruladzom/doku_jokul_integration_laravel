@@ -10,8 +10,8 @@ use Illuminate\Support\Str;
 class JokulController extends Controller
 {
     private $paymentJokulEndpoint="https://api-sandbox.doku.com/checkout/v1/payment";
-    private $clientId = "<your_client_id>";
-    private $secretKey="<your_secret_key>";
+    private $clientId;
+    private $secretKey;
     private $baseWebHook="http://serverpunyakitayangbuatupdatestatus.com/webhook/jokul-payment";
     private $jokulEndpoint="/checkout/v1/payment";
     private $requestId;
@@ -19,6 +19,9 @@ class JokulController extends Controller
     
 
     public function payment(){
+        $this->clientId =env("JOKUL_CLIENT_ID",null);
+        $this->secretKey=env("JOKUL_SECRET_KEY",null);
+
         $randomString = Str::uuid()->toString();
         $dateNow = \Carbon\Carbon::now('Asia/Jakarta');
         $requestId = $randomString;
