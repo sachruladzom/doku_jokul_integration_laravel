@@ -10,8 +10,8 @@ use Illuminate\Support\Str;
 class JokulController extends Controller
 {
     private $paymentJokulEndpoint="https://api-sandbox.doku.com/checkout/v1/payment";
-    private $clientId = "MCH-1040-1640168489748";
-    private $secretKey="SK-XNHofeU4oqUhSO98812o";
+    private $clientId = "<your_client_id>";
+    private $secretKey="<your_secret_key>";
     private $baseWebHook="http://serverpunyakitayangbuatupdatestatus.com/webhook/jokul-payment";
     private $jokulEndpoint="/checkout/v1/payment";
     private $requestId;
