@@ -38,7 +38,7 @@ class JokulController extends Controller
         $requestBody = array(
             "order"=> array(
                 "amount"=>  10500,
-                "invoice_number"=> "INV-648623403",
+                "invoice_number"=> "INV-".$dateNow->timestamp,
                 "currency"=> "IDR",
                 "callback_url"=> "https://www.krasmart.com/",
                 "line_items"=> array(
@@ -78,6 +78,10 @@ class JokulController extends Controller
 
             //echo $paymentObj->url;
             return view('embed-jokul',['jokulUrl'=>$paymentObj->url]);
+        } else {
+            Log::info("error response");
+            Log::info($token);
+            return view('embed-jokul',['jokulUrl'=>"error","message"=>$token]);
         }
 
         
@@ -138,10 +142,14 @@ class JokulController extends Controller
             . "Request-Target:" . $notificationPath . "\n"
             . "Digest:" . $digest;
 
+
+        /*
+        
         Log::info($notificationBody);
         Log::info($notificationPath);
         Log::info($secretKey);
         Log::info($rawSignature);
+        */
         $signature = base64_encode(hash_hmac('sha256', $rawSignature, $secretKey, true));
         $finalSignature = 'HMACSHA256=' . $signature;
 
