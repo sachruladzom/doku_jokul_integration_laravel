@@ -138,8 +138,10 @@ class JokulController extends Controller
             . "Request-Target:" . $notificationPath . "\n"
             . "Digest:" . $digest;
 
-
-        //Log::info($rawSignature);
+        Log::info($notificationBody);
+        Log::info($notificationPath);
+        Log::info($secretKey);
+        Log::info($rawSignature);
         $signature = base64_encode(hash_hmac('sha256', $rawSignature, $secretKey, true));
         $finalSignature = 'HMACSHA256=' . $signature;
 
