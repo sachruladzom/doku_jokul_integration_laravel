@@ -17,11 +17,13 @@ class JokulController extends Controller
     private $requestId;
     private $requestDate;
     
-
-    public function payment(){
+    public function __construct(){
         $this->clientId =env("JOKUL_CLIENT_ID",null);
         $this->secretKey=env("JOKUL_SECRET_KEY",null);
+    }
+    
 
+    public function payment(){
         $randomString = Str::uuid()->toString();
         $dateNow = \Carbon\Carbon::now('Asia/Jakarta');
         $requestId = $randomString;
@@ -121,6 +123,38 @@ class JokulController extends Controller
 
         return "HMACSHA256=".$signature;
 
+    }
+
+    public function notifications(Request $request){
+        $notificationHeader = $request->header();
+        $notificationBody = json_encode($request->all(),JSON_PRETTY_PRINT);
+        $notificationPath = '/payments/notifications'; // Adjust according to your notification path
+        $secretKey = $this->secretKey; // Adjust according to your secret key
+
+        $digest = base64_encode(hash('sha256', $notificationBody, true));
+        $rawSignature = "Client-Id:" . $request->header('Client-Id') . "\n"
+            . "Request-Id:" . $request->header('Request-Id') . "\n"
+            . "Request-Timestamp:" . $request->header('Request-Timestamp') . "\n"
+            . "Request-Target:" . $notificationPath . "\n"
+            . "Digest:" . $digest;
+
+
+        //Log::info($rawSignature);
+        $signature = base64_encode(hash_hmac('sha256', $rawSignature, $secretKey, true));
+        $finalSignature = 'HMACSHA256=' . $signature;
+
+        if ($finalSignature == $request->header('Signature')) {
+            // TODO: Process if Signature is Valid
+            Log::info("signature ok");
+            return response('OK', 200)->header('Content-Type', 'text/plain');
+
+            // TODO: Do update the transaction status based on the `transaction.status`
+        } else {
+            Log::info("Invalid Signature");
+            Log::info("{$finalSignature} == {$request->header('Signature')}");
+            // TODO: Response with 400 errors for Invalid Signature
+            return response('Invalid Signature', 400)->header('Content-Type', 'text/plain');
+        }
     }
 
 
