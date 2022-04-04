@@ -40,7 +40,7 @@ class JokulController extends Controller
                 "amount"=>  10500,
                 "invoice_number"=> "INV-648623403",
                 "currency"=> "IDR",
-                "callback_url"=> "http://202.149.87.50:18099/api/payments/notifications",
+                "callback_url"=> "https://www.krasmart.com/",
                 "line_items"=> array(
                     array(
                         "name"=> "DOKU T-Shirt",
