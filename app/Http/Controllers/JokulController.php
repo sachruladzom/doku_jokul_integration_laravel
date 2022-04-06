@@ -171,7 +171,7 @@ class JokulController extends Controller
                 return "No invoice_number key";
             }
 
-            $this->validatePayment($orderObj->invoice_number);
+            $this->validatePayment($orderObj['invoice_number']);
         } else {
             
         }
