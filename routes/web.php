@@ -19,4 +19,5 @@ use Illuminate\Support\Facades\Route;
 // });
 
 Route::get('/', [JokulController::class, 'payment']);
+//Route::get('/validate/{invoice}', [JokulController::class, 'validatePayment']);
 

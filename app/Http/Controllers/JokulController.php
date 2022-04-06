@@ -9,11 +9,12 @@ use Illuminate\Support\Str;
 
 class JokulController extends Controller
 {
-    private $paymentJokulEndpoint="https://api-sandbox.doku.com/checkout/v1/payment";
+    private $baseUrlJokul="https://api-sandbox.doku.com";
+    private $paymentJokulEndpoint="/checkout/v1/payment";
+    private $validatePaymentJokulEndpoint="/orders/v1/status/";
     private $clientId;
     private $secretKey;
     private $baseWebHook="http://serverpunyakitayangbuatupdatestatus.com/webhook/jokul-payment";
-    private $jokulEndpoint="/checkout/v1/payment";
     private $requestId;
     private $requestDate;
     
@@ -76,7 +77,6 @@ class JokulController extends Controller
                 return "No url key";
             }
 
-            //echo $paymentObj->url;
             return view('embed-jokul',['jokulUrl'=>$paymentObj->url]);
         } else {
             Log::info("error response");
@@ -95,27 +95,23 @@ class JokulController extends Controller
                                 "Request-Id"=>$this->requestId,
                                 "Request-Timestamp"=>$this->requestDate,
                                 "Signature"=>$signature,
-                               // "Content-Type"=>"application/json",
                                 "Accept"=>"*/*"
         );
 
-        //Log::info(print_r($componentHeader,true));
         $dataJson = json_encode($requestBody,JSON_PRETTY_PRINT);
+        $urljokul=$this->baseUrlJokul.$this->paymentJokulEndpoint;
         $response = Http::withHeaders($componentHeader)
-                    ->withBody($dataJson,"application/json")->post($this->paymentJokulEndpoint);
+                    ->withBody($dataJson,"application/json")->post($urljokul);
 
-        //$obj = json_decode($response);
         return $response;
     }
 
     public function getSignature($requestBody){
-        Log::info(json_encode($requestBody,JSON_PRETTY_PRINT));
-        $digestSha=hash('sha256', json_encode($requestBody,JSON_PRETTY_PRINT));
         $digestValue = base64_encode(hash('sha256', json_encode($requestBody,JSON_PRETTY_PRINT), true));
         $componentSignature = "Client-Id:{$this->clientId}\n".
                                 "Request-Id:{$this->requestId}\n".
                                 "Request-Timestamp:{$this->requestDate}\n".
-                                "Request-Target:{$this->jokulEndpoint}\n".
+                                "Request-Target:{$this->paymentJokulEndpoint}\n".
                                 "Digest:{$digestValue}";
 
         $hmac=hash_hmac('sha256', $componentSignature, $this->secretKey, true);
@@ -129,13 +125,17 @@ class JokulController extends Controller
 
     }
 
-    public function notifications(Request $request){
+    /*
+    Name: bak_incomingNotifications()
+    function yang ini gak dipake, soalnya create signature ga cocok terus ama signature dari jokul
+    */
+    public function bak_incomingNotifications(Request $request){
         $notificationHeader = $request->header();
-        $notificationBody = json_encode($request->all(),JSON_PRETTY_PRINT);
-        $notificationPath = '/payments/notifications'; // Adjust according to your notification path
+        $notificationBody = $request->all();
+        $notificationPath = 'api/payments/notifications'; // Adjust according to your notification path
         $secretKey = $this->secretKey; // Adjust according to your secret key
 
-        $digest = base64_encode(hash('sha256', $notificationBody, true));
+        $digest = base64_encode(hash('sha256', json_encode($notificationBody), true));
         $rawSignature = "Client-Id:" . $request->header('Client-Id') . "\n"
             . "Request-Id:" . $request->header('Request-Id') . "\n"
             . "Request-Timestamp:" . $request->header('Request-Timestamp') . "\n"
@@ -143,15 +143,8 @@ class JokulController extends Controller
             . "Digest:" . $digest;
 
 
-        
-        
-        Log::info($notificationBody);
-        Log::info($notificationPath);
-        Log::info($secretKey);
-        Log::info($rawSignature);
-        
         $signature = base64_encode(hash_hmac('sha256', $rawSignature, $secretKey, true));
-        $finalSignature = 'HMACSHA256=' . $signature;
+        $finalSignature ='HMACSHA256=' . $signature;
 
         if ($finalSignature == $request->header('Signature')) {
             // TODO: Process if Signature is Valid
@@ -164,6 +157,66 @@ class JokulController extends Controller
             Log::info("{$finalSignature} == {$request->header('Signature')}");
             // TODO: Response with 400 errors for Invalid Signature
             return response('Invalid Signature', 400)->header('Content-Type', 'text/plain');
+        }
+    }
+
+    public function incomingNotifications(Request $request){
+        $notificationBody = $request->all();
+        $obj = $notificationBody;
+        if(isset($obj['error'])){
+            Log::info($notificationBody);
+        } else if(isset($obj['order'])){
+            $orderObj=$obj['error'];
+            if(!isset($orderObj['invoice_number'])){
+                return "No invoice_number key";
+            }
+
+            $this->validatePayment($orderObj->invoice_number);
+        } else {
+            
+        }
+    }
+
+    public function validatePayment($invoice){
+        $urlvalidate=$this->validatePaymentJokulEndpoint.$invoice;
+        $randomString= Str::uuid()->toString();
+        $dateNow = \Carbon\Carbon::now('Asia/Jakarta');
+        $requestDate=$dateNow->toIso8601ZuluString();
+        $componentSignature = "Client-Id:{$this->clientId}\n".
+                                "Request-Id:{$randomString}\n".
+                                "Request-Timestamp:{$requestDate}\n".
+                                "Request-Target:{$urlvalidate}";
+
+        $hmac=hash_hmac('sha256', $componentSignature, $this->secretKey, true);
+        $signature = base64_encode($hmac);
+        
+        $componentHeader = array("Client-Id"=>$this->clientId,
+                                "Request-Id"=>$randomString,
+                                "Request-Timestamp"=>$requestDate,
+                                "Signature"=>"HMACSHA256=".$signature
+        );
+
+        $urljokul=$this->baseUrlJokul.$urlvalidate;
+        $response = Http::withHeaders($componentHeader)->get($urljokul);
+
+        $obj = json_decode($response);
+        if(isset($obj->error)){
+            Log::info($response);
+        } else if(isset($obj->transaction)){
+            $transactionObj=$obj->transaction;
+            if(!isset($transactionObj->status)){
+                return "No status key";
+            }
+
+            $trx = array(
+                "status"=>$transactionObj->status,
+                "date"=>$transactionObj->date,
+                "original_request_id"=>$transactionObj->original_request_id
+            );
+            Log::info(print_r($trx,true));
+
+        } else {
+            
         }
     }
 
