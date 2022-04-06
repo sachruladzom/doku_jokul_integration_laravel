@@ -166,7 +166,7 @@ class JokulController extends Controller
         if(isset($obj['error'])){
             Log::info($notificationBody);
         } else if(isset($obj['order'])){
-            $orderObj=$obj['error'];
+            $orderObj=$obj['order'];
             if(!isset($orderObj['invoice_number'])){
                 return "No invoice_number key";
             }
